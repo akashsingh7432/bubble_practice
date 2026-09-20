@@ -174,54 +174,74 @@ Each question MUST contain:
 
 Return in strict JSON format.`;
 
-    // 12-second timeout to allow Gemini full generation window
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Gemini generation timed out")), 12000)
-    );
+    // Multi-model cascade: if primary model experiences temporary 503 high demand spikes, automatically try fallback models
+    const CANDIDATE_MODELS = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
+    let lastError: any = null;
+    let successfulData: any = null;
 
-    const generatePromise = ai.models.generateContent({
-      model: "gemini-3.8-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            questions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  category: { type: Type.STRING },
-                  difficulty: { type: Type.STRING },
-                  expressions: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        id: { type: Type.STRING, description: "'A', 'B', or 'C'" },
-                        expression: { type: Type.STRING, description: "e.g. 15% of 240, 2^7 - 35, etc." },
-                        value: { type: Type.NUMBER, description: "Exact numeric result" }
+    for (const modelName of CANDIDATE_MODELS) {
+      try {
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Gemini generation timed out")), 10000)
+        );
+
+        const generatePromise = ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                questions: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      category: { type: Type.STRING },
+                      difficulty: { type: Type.STRING },
+                      expressions: {
+                        type: Type.ARRAY,
+                        items: {
+                          type: Type.OBJECT,
+                          properties: {
+                            id: { type: Type.STRING, description: "'A', 'B', or 'C'" },
+                            expression: { type: Type.STRING, description: "e.g. 15% of 240, 2^7 - 35, etc." },
+                            value: { type: Type.NUMBER, description: "Exact numeric result" }
+                          },
+                          required: ["id", "expression", "value"]
+                        }
                       },
-                      required: ["id", "expression", "value"]
-                    }
-                  },
-                  trick: { type: Type.STRING, description: "Fast 1-2 sentence mental calculation trick" }
-                },
-                required: ["category", "difficulty", "expressions", "trick"]
-              }
+                      trick: { type: Type.STRING, description: "Fast 1-2 sentence mental calculation trick" }
+                    },
+                    required: ["category", "difficulty", "expressions", "trick"]
+                  }
+                }
+              },
+              required: ["questions"]
             }
-          },
-          required: ["questions"]
+          }
+        });
+
+        const response: any = await Promise.race([generatePromise, timeoutPromise]);
+        const parsed = JSON.parse(response.text || "{}");
+        if (parsed.questions && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+          successfulData = { questions: parsed.questions, model: modelName };
+          break; // Success!
+        }
+      } catch (err: any) {
+        lastError = err;
+        const isHighDemand = err?.message?.includes("503") || err?.message?.includes("high demand") || err?.status === 503;
+        if (isHighDemand) {
+          console.warn(`[Model ${modelName}] 503 high demand spike. Attempting next fallback model...`);
+        } else {
+          console.warn(`[Model ${modelName}] generation failed:`, err?.message || err);
         }
       }
-    });
+    }
 
-    const response: any = await Promise.race([generatePromise, timeoutPromise]);
-
-    const parsed = JSON.parse(response.text || "{}");
-    if (parsed.questions && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
-      const sanitizedQuestions = parsed.questions.map((q: any, index: number) => {
+    if (successfulData) {
+      const sanitizedQuestions = successfulData.questions.map((q: any, index: number) => {
         // Ensure expressions have distinct values
         const exps = (q.expressions || []).slice(0, 3).map((e: any, idx: number) => ({
           id: ['A', 'B', 'C'][idx] || `exp-${idx}`,
@@ -251,20 +271,26 @@ Return in strict JSON format.`;
         };
       });
 
-      return res.json({ questions: sanitizedQuestions, source: 'gemini' });
+      return res.json({ questions: sanitizedQuestions, source: 'gemini', model: successfulData.model });
     }
 
-    throw new Error("Invalid structure returned from Gemini");
+    throw lastError || new Error("All Gemini models temporarily unavailable");
   } catch (err: any) {
-    console.error("Gemini generation error:", err);
-    // Graceful fallback to guarantee smooth gameplay without blocking
+    const isHighDemand = err?.message?.includes("503") || err?.message?.includes("high demand") || err?.status === 503;
+    if (isHighDemand) {
+      console.warn("Gemini service is currently at peak capacity. Seamlessly serving algorithmic question set.");
+    } else {
+      console.warn("Serving resilient fallback question set:", err?.message || err);
+    }
+
+    // Graceful fallback to guarantee smooth uninterrupted gameplay
     const fallbackResults = Array.from({ length: numQuestions }, () => 
       generateFallbackQuestion(category, difficulty)
     );
     return res.json({ 
       questions: fallbackResults, 
-      source: 'fallback_error',
-      error: err?.message || 'Error occurred' 
+      source: 'algorithmic_backup',
+      notice: isHighDemand ? 'Temporary high demand on AI models; backup generator active' : undefined
     });
   }
 });
@@ -291,4 +317,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Only start the standalone HTTP server if not running in Vercel serverless environment
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
