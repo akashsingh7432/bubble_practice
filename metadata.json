@@ -1,0 +1,6 @@
+{
+  "name": "Bubble Math Practice",
+  "description": "Prepare for corporate assessments by sorting math expressions from lowest to highest value under a strict time limit.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
