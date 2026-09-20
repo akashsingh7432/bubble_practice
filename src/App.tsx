@@ -16,7 +16,7 @@ import {
   QuestionResult, 
   MathExpression 
 } from './types';
-import { fallbackQuestions, ensureDistinctValues } from './data/mockQuestions';
+import { fallbackQuestions, getQuestionsPool, ensureDistinctValues } from './data/mockQuestions';
 import { CircularTimer } from './components/CircularTimer';
 import { MathBubble } from './components/MathBubble';
 import { SolutionPanel } from './components/SolutionPanel';
@@ -34,7 +34,7 @@ export default function App() {
   const [isMuted, setIsMuted] = useState(false);
 
   // Questions queue
-  const [questions, setQuestions] = useState<Question[]>(fallbackQuestions.slice(0, TOTAL_QUESTIONS));
+  const [questions, setQuestions] = useState<Question[]>(() => getQuestionsPool('All Categories', 'Intermediate', TOTAL_QUESTIONS));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [aiSource, setAiSource] = useState<string>('gemini');
@@ -75,22 +75,29 @@ export default function App() {
 
       const data = await response.json();
       if (data.questions && data.questions.length > 0) {
-        const sanitized = data.questions.map((q: Question) => ensureDistinctValues(q));
+        let validQuestions = data.questions;
+        if (cat !== 'All Categories') {
+          // Strictly verify category match
+          validQuestions = validQuestions.filter((q: Question) => q.category === cat);
+          if (validQuestions.length < TOTAL_QUESTIONS) {
+            const backupPool = getQuestionsPool(cat, diff, TOTAL_QUESTIONS);
+            validQuestions = [
+              ...validQuestions,
+              ...backupPool.slice(validQuestions.length)
+            ];
+          }
+        }
+        const sanitized = validQuestions.slice(0, TOTAL_QUESTIONS).map((q: Question) => ensureDistinctValues(q));
         setQuestions(sanitized);
         setAiSource(data.source || 'gemini');
       } else {
         throw new Error('No questions returned');
       }
     } catch (err) {
-      console.warn('Using seeded fallback questions due to API unavailability:', err);
-      // Shuffle & filter fallback questions
-      let pool = [...fallbackQuestions];
-      if (cat !== 'All Categories') {
-        pool = pool.filter(q => q.category === cat);
-        if (pool.length === 0) pool = [...fallbackQuestions];
-      }
-      setQuestions(pool.slice(0, TOTAL_QUESTIONS));
-      setAiSource('seeded_cache');
+      console.warn('Using tailored question pool:', err);
+      const pool = getQuestionsPool(cat, diff, TOTAL_QUESTIONS);
+      setQuestions(pool);
+      setAiSource('algorithmic_cache');
     } finally {
       setIsLoading(false);
     }
@@ -101,8 +108,8 @@ export default function App() {
     fetchQuestions(category, difficulty);
   }, []);
 
-  // Active question object
-  const currentQuestion: Question | undefined = questions[currentIndex] || fallbackQuestions[0];
+  // Active question object - strictly guaranteed to match category & difficulty
+  const currentQuestion: Question | undefined = questions[currentIndex] || getQuestionsPool(category, difficulty, 1)[0];
 
   // Map each expression ID to its true rank (1st = lowest, 2nd = middle, 3rd = highest)
   const trueRanks = React.useMemo(() => {
@@ -248,6 +255,8 @@ export default function App() {
     setStreak(0);
     setHistory([]);
     setIsGameOver(false);
+    const immediatePool = getQuestionsPool(category, difficulty, TOTAL_QUESTIONS);
+    setQuestions(immediatePool);
     fetchQuestions(category, difficulty);
   }, [category, difficulty, fetchQuestions]);
 
@@ -263,6 +272,9 @@ export default function App() {
     setStreak(0);
     setHistory([]);
     setIsGameOver(false);
+    // Instantly set queue with matching category questions
+    const immediatePool = getQuestionsPool(newCat, difficulty, TOTAL_QUESTIONS);
+    setQuestions(immediatePool);
     fetchQuestions(newCat, difficulty);
   };
 
@@ -278,6 +290,9 @@ export default function App() {
     setStreak(0);
     setHistory([]);
     setIsGameOver(false);
+    // Instantly set queue with matching difficulty questions
+    const immediatePool = getQuestionsPool(category, newDiff, TOTAL_QUESTIONS);
+    setQuestions(immediatePool);
     fetchQuestions(category, newDiff);
   };
 

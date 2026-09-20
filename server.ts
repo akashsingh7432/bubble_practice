@@ -89,54 +89,103 @@ function generateFallbackQuestion(category?: string, difficulty?: string) {
       trick: `Divide the whole number by the denominator first, then multiply by the numerator.`
     };
   } else if (selectedCategory === 'Exponents/Powers') {
+    const offset = Math.floor(Math.random() * 6);
     return {
       id,
       category: selectedCategory,
       difficulty: selectedDiff,
       expressions: [
-        { id: 'A', expression: '2^6 - 18', value: 46, category: selectedCategory },
-        { id: 'B', expression: '3^4 - 32', value: 49, category: selectedCategory },
-        { id: 'C', expression: '7^2 - 5', value: 44, category: selectedCategory }
+        { id: 'A', expression: `2^6 - ${15 + offset}`, value: 64 - (15 + offset), category: selectedCategory },
+        { id: 'B', expression: `3^4 - ${30 + offset}`, value: 81 - (30 + offset), category: selectedCategory },
+        { id: 'C', expression: `7^2 + ${3 - offset}`, value: 49 + (3 - offset), category: selectedCategory }
       ],
-      trick: `Remember powers of 2 (2^6=64) and 3 (3^4=81). 64 - 18 = 46, 81 - 32 = 49, 49 - 5 = 44.`
+      trick: `Remember benchmark powers: 2^6 = 64, 3^4 = 81, 7^2 = 49.`
     };
   } else if (selectedCategory === 'Decimals') {
+    const mult = 12 + Math.floor(Math.random() * 6);
     return {
       id,
       category: selectedCategory,
       difficulty: selectedDiff,
       expressions: [
-        { id: 'A', expression: '3.5 × 16', value: 56, category: selectedCategory },
-        { id: 'B', expression: '0.75 × 72', value: 54, category: selectedCategory },
-        { id: 'C', expression: '4.2 × 14 - 1', value: 57.8, category: selectedCategory }
+        { id: 'A', expression: `3.5 × ${mult}`, value: 3.5 * mult, category: selectedCategory },
+        { id: 'B', expression: `0.5 × ${(3.5 * mult * 2) - 4}`, value: (3.5 * mult) - 2, category: selectedCategory },
+        { id: 'C', expression: `1.5 × ${Math.round(((3.5 * mult) + 4) / 1.5)}`, value: Math.round(((3.5 * mult) + 4) / 1.5) * 1.5, category: selectedCategory }
       ],
-      trick: `Use doubling and halving: 3.5 × 16 = 7 × 8 = 56. 0.75 is 3/4 (72 ÷ 4 × 3 = 54).`
+      trick: `Use doubling and halving: 3.5 × 16 = 7 × 8 = 56. 0.5 is half.`
     };
   } else if (selectedCategory === 'BODMAS') {
+    const k = 4 + Math.floor(Math.random() * 5);
     return {
       id,
       category: selectedCategory,
       difficulty: selectedDiff,
       expressions: [
-        { id: 'A', expression: '18 + 7 × 6 - 22', value: 38, category: selectedCategory },
-        { id: 'B', expression: '(15 - 7) × 5 + 2', value: 42, category: selectedCategory },
-        { id: 'C', expression: '80 - 64 ÷ 8 - 36', value: 36, category: selectedCategory }
+        { id: 'A', expression: `18 + 7 × ${k} - 12`, value: 18 + 7 * k - 12, category: selectedCategory },
+        { id: 'B', expression: `(15 - 6) × ${k} + 4`, value: 9 * k + 4, category: selectedCategory },
+        { id: 'C', expression: `80 - 48 ÷ 6 - ${10 + k}`, value: 80 - 8 - (10 + k), category: selectedCategory }
       ],
-      trick: `Always solve brackets and multiplication/division first: 7 × 6 = 42; 8 × 5 = 40; 64 ÷ 8 = 8.`
+      trick: `Always solve brackets and multiplication/division first.`
     };
   } else {
-    // Basic Arithmetic
-    return {
-      id,
-      category: selectedCategory,
-      difficulty: selectedDiff,
-      expressions: [
-        { id: 'A', expression: '16 × 4 + 11', value: 75, category: selectedCategory },
-        { id: 'B', expression: '13 × 6 - 9', value: 69, category: selectedCategory },
-        { id: 'C', expression: '95 - 28 ÷ 2', value: 81, category: selectedCategory }
-      ],
-      trick: `Split numbers: 16 × 4 = 64 (+ 11 = 75). 13 × 6 = 78 (- 9 = 69). 95 - 14 = 81.`
-    };
+    // Basic Arithmetic - STRICTLY integer addition, subtraction, multiplication, and clean division
+    if (selectedDiff === 'Basic') {
+      const basicPairs = [
+        { a: '18 + 27', vA: 45, b: '12 × 4', vB: 48, c: '75 - 33', vC: 42, trick: 'Single-step mental math: 75 - 33 = 42 < 18 + 27 = 45 < 12 × 4 = 48.' },
+        { a: '19 + 18', vA: 37, b: '9 × 4', vB: 36, c: '50 - 16', vC: 34, trick: 'Quick addition & multiplication: 50 - 16 = 34 < 9 × 4 = 36 < 19 + 18 = 37.' },
+        { a: '28 + 24', vA: 52, b: '6 × 9', vB: 54, c: '80 - 25', vC: 55, trick: 'Round and adjust: 28 + 24 = 52 < 6 × 9 = 54 < 80 - 25 = 55.' },
+        { a: '7 × 9', vA: 63, b: '38 + 27', vB: 65, c: '90 - 29', vC: 61, trick: 'Mental comparison: 90 - 29 = 61 < 7 × 9 = 63 < 38 + 27 = 65.' },
+        { a: '8 × 9', vA: 72, b: '45 + 29', vB: 74, c: '95 - 26', vC: 69, trick: 'Multiplication table and tens addition: 95 - 26 = 69 < 8 × 9 = 72 < 45 + 29 = 74.' },
+        { a: '16 × 3', vA: 48, b: '25 + 26', vB: 51, c: '65 - 19', vC: 46, trick: 'Multiples of 16: 65 - 19 = 46 < 16 × 3 = 48 < 25 + 26 = 51.' }
+      ];
+      const pick = basicPairs[Math.floor(Math.random() * basicPairs.length)];
+      return {
+        id,
+        category: 'Basic Arithmetic',
+        difficulty: 'Basic',
+        expressions: [
+          { id: 'A', expression: pick.a, value: pick.vA, category: 'Basic Arithmetic' },
+          { id: 'B', expression: pick.b, value: pick.vB, category: 'Basic Arithmetic' },
+          { id: 'C', expression: pick.c, value: pick.vC, category: 'Basic Arithmetic' }
+        ],
+        trick: pick.trick
+      };
+    } else if (selectedDiff === 'Intermediate') {
+      const interPairs = [
+        { a: '16 × 4 + 11', vA: 75, b: '13 × 6 - 9', vB: 69, c: '95 - 28 ÷ 2', vC: 81, trick: 'Split numbers: 16 × 4 = 64 (+ 11 = 75). 13 × 6 = 78 (- 9 = 69). 95 - 14 = 81.' },
+        { a: '14 × 5 + 8', vA: 78, b: '17 × 4 + 6', vB: 74, c: '110 - 32', vC: 78, trick: '14 × 5 = 70 (+8 = 78); 17 × 4 = 68 (+6 = 74); 110 - 32 = 78.' }
+      ];
+      const pick = interPairs[Math.floor(Math.random() * interPairs.length)];
+      return {
+        id,
+        category: 'Basic Arithmetic',
+        difficulty: 'Intermediate',
+        expressions: [
+          { id: 'A', expression: pick.a, value: pick.vA, category: 'Basic Arithmetic' },
+          { id: 'B', expression: pick.b, value: pick.vB, category: 'Basic Arithmetic' },
+          { id: 'C', expression: pick.c, value: pick.vC, category: 'Basic Arithmetic' }
+        ],
+        trick: pick.trick
+      };
+    } else {
+      // Advanced Basic Arithmetic
+      const advPairs = [
+        { a: '17 × 4 + 19', vA: 87, b: '14 × 6 + 7', vB: 91, c: '19 × 5 - 12', vC: 83, trick: 'Decompose: 17 × 4 = 68 (+ 19 = 87); 14 × 6 = 84 (+ 7 = 91); 19 × 5 = 95 (- 12 = 83).' },
+        { a: '18 × 5 + 14', vA: 104, b: '22 × 4 + 9', vB: 97, c: '16 × 6 + 5', vC: 101, trick: '18 × 5 = 90 (+14 = 104); 22 × 4 = 88 (+9 = 97); 16 × 6 = 96 (+5 = 101).' }
+      ];
+      const pick = advPairs[Math.floor(Math.random() * advPairs.length)];
+      return {
+        id,
+        category: 'Basic Arithmetic',
+        difficulty: 'Advanced',
+        expressions: [
+          { id: 'A', expression: pick.a, value: pick.vA, category: 'Basic Arithmetic' },
+          { id: 'B', expression: pick.b, value: pick.vB, category: 'Basic Arithmetic' },
+          { id: 'C', expression: pick.c, value: pick.vC, category: 'Basic Arithmetic' }
+        ],
+        trick: pick.trick
+      };
+    }
   }
 }
 
@@ -164,13 +213,31 @@ app.post("/api/questions/generate", async (req, res) => {
   }
 
   try {
+    const isCategorySelected = category && category !== 'All Categories';
+    const categoryMandate = isCategorySelected
+      ? `CRITICAL CATEGORY CONSTRAINT: The user has selected "${category}".
+EVERY question and EVERY expression ('A', 'B', 'C') MUST strictly be from "${category}" ONLY!
+- If "${category}" is "Basic Arithmetic": ONLY use integers and basic operations (+, -, ×, ÷). Strictly DO NOT include percentages (%), fractions (/), exponents (^), or decimals (.).
+- If "${category}" is "Percentages": Every expression MUST be a percentage calculation.
+- If "${category}" is "Fractions": Every expression MUST involve fraction arithmetic.
+- If "${category}" is "Decimals": Every expression MUST involve decimals.
+- If "${category}" is "Exponents/Powers": Every expression MUST involve exponents.
+- If "${category}" is "BODMAS": Every expression MUST test order of operations with brackets.`
+      : `Category can be chosen from: Basic Arithmetic, Exponents/Powers, Fractions, Decimals, Percentages, BODMAS.`;
+
+    const difficultyMandate = `Difficulty Level: "${difficulty || 'Intermediate'}".
+- If "Basic": Clean, accessible mental math calculations (small to medium integers, single-step operations or intuitive combinations like 18 + 27, 12 × 4, 75 - 33).
+- If "Intermediate": 2-step calculations (e.g. 14 × 5 + 8, 16 × 4 - 9).
+- If "Advanced": Multi-step or larger calculations requiring smart shortcuts.`;
+
     const prompt = `Generate ${numQuestions} question(s) for a corporate assessment fast mental math speed test (like McKinsey PST, Bain, BCG, or trading assessment).
 Each question MUST contain:
-1. Exactly 3 distinct math expressions ('A', 'B', 'C') from the selected category (${category || 'one of: Basic Arithmetic, Exponents/Powers, Fractions, Decimals, Percentages, BODMAS'}).
-2. Difficulty: ${difficulty || 'spanning Basic to Advanced'}.
-3. The expressions must have CLOSE but STRICTLY DISTINCT numerical values (no two expressions can evaluate to the exact same number!).
-4. Include exact numerical values as floats/integers.
-5. Provide a crisp 1-2 sentence "Trick/Solution" explaining the fastest mental math trick (e.g., doubling/halving, benchmark percentages, factorization, or order of operations).
+1. Exactly 3 distinct math expressions ('A', 'B', 'C').
+2. ${categoryMandate}
+3. ${difficultyMandate}
+4. The expressions must have CLOSE but STRICTLY DISTINCT numerical values (no two expressions can evaluate to the exact same number!).
+5. Include exact numerical values as floats/integers.
+6. Provide a crisp 1-2 sentence "trick" explaining the fastest mental math calculation shortcut.
 
 Return in strict JSON format.`;
 
@@ -242,30 +309,55 @@ Return in strict JSON format.`;
 
     if (successfulData) {
       const sanitizedQuestions = successfulData.questions.map((q: any, index: number) => {
+        const effectiveCategory = isCategorySelected ? category : (q.category || 'Basic Arithmetic');
+        const effectiveDifficulty = difficulty || q.difficulty || 'Intermediate';
+
+        // Check if any expression violates category rules
+        const hasViolations = (q.expressions || []).some((e: any) => {
+          const str = String(e.expression || '');
+          if (effectiveCategory === 'Basic Arithmetic') {
+            return str.includes('%') || str.includes('^') || (str.includes('/') && !str.includes('÷'));
+          }
+          if (effectiveCategory === 'Percentages') {
+            return !str.includes('%');
+          }
+          if (effectiveCategory === 'Fractions') {
+            return !str.includes('/') && !str.includes('÷');
+          }
+          if (effectiveCategory === 'Exponents/Powers') {
+            return !str.includes('^');
+          }
+          return false;
+        });
+
+        if (hasViolations) {
+          return generateFallbackQuestion(effectiveCategory, effectiveDifficulty);
+        }
+
         // Ensure expressions have distinct values
         const exps = (q.expressions || []).slice(0, 3).map((e: any, idx: number) => ({
           id: ['A', 'B', 'C'][idx] || `exp-${idx}`,
           expression: String(e.expression || '').trim(),
           value: Number(e.value),
-          category: q.category || category || 'Basic Arithmetic'
+          category: effectiveCategory
         }));
 
         // Adjust if any collision
         if (exps.length === 3) {
           if (exps[0].value === exps[1].value) {
-            exps[1].value += 1.5;
-            exps[1].expression += ' + 1.5';
+            exps[1].value += 2;
+            exps[1].expression += ' + 2';
           }
           if (exps[2].value === exps[0].value || exps[2].value === exps[1].value) {
-            exps[2].value += 3.5;
-            exps[2].expression += ' + 3.5';
+            exps[2].value += 4;
+            exps[2].expression += ' + 4';
           }
         }
 
         return {
           id: `gemini-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 6)}`,
-          category: q.category || category || 'Basic Arithmetic',
-          difficulty: q.difficulty || difficulty || 'Intermediate',
+          category: effectiveCategory,
+          difficulty: effectiveDifficulty,
           expressions: exps,
           trick: q.trick || 'Compute expressions mentally and compare key benchmarks.'
         };
